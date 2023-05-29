@@ -9,4 +9,4 @@ set(CMAKE_CXX_STANDARD 17)
 
 add_subdirectory(cppsam)
 add_subdirectory(vino_executor)
-#add_subdirectory(test_app)
+add_subdirectory(test_app)
