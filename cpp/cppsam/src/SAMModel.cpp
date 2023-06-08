@@ -14,22 +14,20 @@ struct SAMModelImpl {
     bool setInput(cv::Mat image) {
         try {
             if (!m_executor) return false;
-            m_processor = std::make_unique<Processing>(image);
-            m_executor->EncodeImage(m_processor->getNormalizedImage());
+            m_processor = std::make_unique<Processing>(image, m_executor->input_size(), m_executor->output_size());
+            m_executor->encode_image(m_processor->getNormalizedImage());
         }
         catch (...) { return false; }
 
         return true;
     }
-    cv::Mat predict(const std::vector<cv::Point2f>& positive_pos,
-                    const std::vector<cv::Point2f>& negative_pos) const {
+    cv::Mat predict(const std::vector<cv::Point2f>& points, const std::vector<float>& labels) const {
         if (!m_processor || !m_executor)
             return cv::Mat();
 
-        auto ppos = m_processor->map<Processing::Direction::Forwards>(positive_pos);
-        auto npos = m_processor->map<Processing::Direction::Forwards>(negative_pos);
+        auto positions = m_processor->map<Processing::Direction::Forwards>(points);
 
-        cv::Mat mask = m_executor->predict(ppos, npos);
+        cv::Mat mask = m_executor->predict(points, labels);
         return mask.empty() ? cv::Mat() : m_processor->map<Processing::Direction::Backwards>(mask);
     }
 
@@ -47,9 +45,8 @@ bool SAMModel::setInput(cv::Mat image) {
     return m_impl->setInput(image);
 }
 
-cv::Mat SAMModel::predict(const std::vector<cv::Point2f>& positive_pos,
-                          const std::vector<cv::Point2f>& negative_pos) const {
-    return m_impl->predict(positive_pos, negative_pos);
+cv::Mat SAMModel::predict(const std::vector<cv::Point2f>& points, const std::vector<float>& labels) const {
+    return m_impl->predict(points, labels);
 }
 
 }

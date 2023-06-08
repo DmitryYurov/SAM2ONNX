@@ -18,29 +18,25 @@ public:
     };
 
     // Accepts the target size (px) of a side of the output image (output images is to be square)
-    Processing(const cv::Mat& input_image);
+    Processing(const cv::Mat& input_image, cv::Size net_input_size, cv::Size net_output_size);
 
     cv::Mat getNormalizedImage() { return m_normalized; };
 
-    template<Direction direction>
-    cv::Mat map(const cv::Mat& input_image) const;
-
-    template <Direction direction>
-    std::vector<cv::Point2f> map(const std::vector<cv::Point2f>& input_data) const;
+    template<Direction direction, class Type>
+    Type map(const Type& input_image) const;
 
 private:
+    struct Scale {
+        double x, y;
+    };
+
     template<Direction direction>
-    double getScale() const;
+    Scale getScale() const;
 
     cv::Size m_original_size;
+    cv::Size m_net_input_size;
+    cv::Size m_net_output_size;
     cv::Mat m_normalized;
 };
-
-template<> cv::Mat Processing::map<Processing::Direction::Forwards>(const cv::Mat& input_image) const;
-template<> cv::Mat Processing::map<Processing::Direction::Backwards>(const cv::Mat& input_image) const;
-template<> std::vector<cv::Point2f> Processing::map<Processing::Direction::Forwards>(const std::vector<cv::Point2f>& input_data) const;
-template<> std::vector<cv::Point2f> Processing::map<Processing::Direction::Backwards>(const std::vector<cv::Point2f>& input_data) const;
-template<> double Processing::getScale<Processing::Direction::Forwards>() const;
-template<> double Processing::getScale<Processing::Direction::Backwards>() const;
 
 } // namespace cppsam

@@ -47,7 +47,7 @@ ONNXVinoExecutor::ONNXVinoExecutor(ov::Core core,
     std::cout << "\tsuccessful" << std::endl;
 
     std::cout << "Compiling the image encoder to a device" << "\t...";
-    m_im_enc_compiled = m_core.compile_model(m_im_encoder);
+    m_im_enc_compiled = m_core.compile_model(m_im_encoder, "CPU");
     std::cout << "\tsuccessful" << std::endl;
 
     std::cout << "Loading the model tail from: " << the_rest_path.string() << "\t...";
@@ -55,7 +55,7 @@ ONNXVinoExecutor::ONNXVinoExecutor(ov::Core core,
     std::cout << "\tsuccessful" << std::endl;
 
     std::cout << "Compiling the tail to a device" << "\t...";
-    m_the_rest_compiled = m_core.compile_model(m_the_rest);
+    m_the_rest_compiled = m_core.compile_model(m_the_rest, "CPU");
     std::cout << "\tsuccessful" << std::endl;
 
     std::cout << "Creating infer requests" << "\t...";
