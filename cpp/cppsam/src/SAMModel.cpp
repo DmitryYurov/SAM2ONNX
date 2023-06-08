@@ -27,7 +27,7 @@ struct SAMModelImpl {
 
         auto positions = m_processor->map<Processing::Direction::Forwards>(points);
 
-        cv::Mat mask = m_executor->predict(points, labels);
+        cv::Mat mask = m_executor->predict(positions, labels);
         return mask.empty() ? cv::Mat() : m_processor->map<Processing::Direction::Backwards>(mask);
     }
 

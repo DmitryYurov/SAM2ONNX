@@ -12,6 +12,15 @@ ov::Tensor hasNoMasksTensor() {
     return result;
 }
 
+ov::Tensor dummyMaskTensor() {
+    ov::Tensor result(input_type, ov::Shape{ 1, 1, 256, 256 });
+    auto data = result.data<float>();
+    for (size_t i = 0, size = result.get_size(); i < size; ++i)
+        data[i] = 0.f;
+
+    return result;
+}
+
 ov::Tensor points2Tensor(const std::vector<cv::Point2f>& points) {
     auto result = ov::Tensor(input_type, ov::Shape{ 1, points.size(), 2 });
     std::memcpy(result.data<float>(), points.data(), points.size() * sizeof(cv::Point2f));
@@ -90,7 +99,7 @@ bool ONNXVinoExecutor::encode_image(cv::Mat input_image) {
     // we also assume that the image data is in contiguous memory
     ov::Tensor input_tensor = ov::Tensor(m_im_encoder->input().get_element_type(), 
                                          m_im_encoder->input().get_shape(),
-                                         input_image.ptr<float>());
+                                         input_image.data);
 
     m_im_enc_infer.set_input_tensor(input_tensor);
     m_im_enc_infer.infer();
@@ -105,12 +114,13 @@ cv::Mat ONNXVinoExecutor::predict(const std::vector<cv::Point2f>& points, const 
         throw std::runtime_error("ONNXVinoExecutor::predict: points / labels size mismatch");
 
     static const ov::Tensor has_no_masks = hasNoMasksTensor();
+    static const ov::Tensor dummy_mask = dummyMaskTensor(); // although we don't use any masks, this tensor must be explicitly nullified
 
     // filling the inputs - their names and shapes should coinside with the ones specified during the export to ONNX-format
     m_the_rest_infer.set_tensor("image_embeddings", m_im_enc_infer.get_output_tensor());
     m_the_rest_infer.set_tensor("point_coords", points2Tensor(points));
     m_the_rest_infer.set_tensor("point_labels", labels2Tensor(labels));
-    //m_the_rest_infer.set_tensor("mask_input", ...); // can be omitted since we don't use any masks
+    m_the_rest_infer.set_tensor("mask_input", dummy_mask);
     m_the_rest_infer.set_tensor("has_mask_input", has_no_masks);
 
     m_the_rest_infer.infer();

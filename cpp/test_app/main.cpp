@@ -1,3 +1,5 @@
+#include <chrono>
+
 #include <opencv2/core.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
@@ -9,6 +11,7 @@
 #include <vino_executor/ONNXVinoExecutor.h>
 
 using namespace std::filesystem;
+using namespace std::chrono;
 
 int main() {
     try {
@@ -23,8 +26,16 @@ int main() {
 
         // Setting up and running the model
         cppsam::SAMModel model(std::make_shared<vino_executor::ONNXVinoExecutor>(ov::Core(), im_enc_path, the_rest_path));
+
+        // Making inference
+        auto t0 = high_resolution_clock::now();
         model.setInput(test_im);
         cv::Mat result = model.predict(std::vector{ cv::Point2f(926, 926), cv::Point2f(806, 918), cv::Point2f(0, 0) }, std::vector{ 1.f, 0.f, -1.f });
+        auto t1 = high_resolution_clock::now();
+
+        std::cout << "Inference in " << duration_cast<milliseconds>(t1 - t0).count() << " ms" << std::endl;
+
+        cv::resize(result, result, cv::Size(), 0.2, 0.2);
         cv::imshow("Result mask", result);
         cv::waitKey(0);
     }
