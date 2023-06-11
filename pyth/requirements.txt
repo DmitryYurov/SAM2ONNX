@@ -1,0 +1,8 @@
+numpy~=1.24.3
+opencv-python~=4.7.0.72
+torch~=2.0.0
+onnxruntime~=1.14.1
+matplotlib~=3.7.1
+torchvision~=0.15.1
+segment-anything~=1.0
+requests~=2.30.0

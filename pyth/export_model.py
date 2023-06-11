@@ -1,14 +1,33 @@
+#!/usr/bin/env python3
+
+import getopt
+import os
+import sys
 import warnings
 from typing import Tuple
 
+import requests
+
 import torch
-from torch import nn as nn
 
 from segment_anything import sam_model_registry
 from segment_anything.modeling import Sam
 
+cache_dir = "." + os.sep + "cache"
 
-class ExportTheRest(nn.Module):
+
+class ImageEncoderExp(torch.nn.Module):
+    def __init__(self, model: Sam) -> None:
+        super().__init__()
+        self.image_encoder = model.image_encoder
+        self.image_size = model.image_encoder.img_size
+
+    @torch.no_grad()
+    def forward(self, input_image: torch.Tensor):
+        return self.image_encoder(input_image)
+
+
+class ExportTheRest(torch.nn.Module):
     def __init__(self, model: Sam) -> None:
         super().__init__()
         self.mask_decoder = model.mask_decoder
@@ -75,9 +94,72 @@ class ExportTheRest(nn.Module):
         return masks, scores
 
 
-if __name__ == "__main__":
-    export_path = "../export/the_rest.onnx"
-    sam = sam_model_registry["vit_b"](checkpoint="./data/sam_vit_b_01ec64.pth")
+def get_checkpoint_url(checkpoint_name: str):
+    if checkpoint_name == "vit_b":
+        return "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth"
+    elif checkpoint_name == "vit_h":
+        return "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth"
+    elif checkpoint_name == "vit_l":
+        return "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_l_0b3195.pth"
+    else:
+        raise RuntimeError(f"Given checkpoint {checkpoint_name} is unknown")
+
+
+def get_checkpoint_path(checkpoint_name: str):
+    if checkpoint_name == "vit_b":
+        return cache_dir + os.sep + "sam_vit_b_01ec64.pth"
+    elif checkpoint_name == "vit_h":
+        return cache_dir + os.sep + "sam_vit_h_4b8939.pth"
+    elif checkpoint_name == "vit_l":
+        return cache_dir + os.sep + "sam_vit_l_0b3195.pth"
+    else:
+        raise RuntimeError(f"Given checkpoint {checkpoint_name} is unknown")
+
+
+def export_im_encoder(export_dir: str, checkpoint_name: str):
+    checkpoint_path = get_checkpoint_path(checkpoint_name)
+    checkpoint_url = get_checkpoint_url(checkpoint_name)
+
+    # creating cache directory and downloading the model checkpoint
+    os.makedirs(cache_dir, exist_ok=True)
+    if not os.path.exists(checkpoint_path):
+        req = requests.get(checkpoint_url, allow_redirects=True)
+        with open(checkpoint_path, "wb") as cp_file:
+            cp_file.write(req.content)
+
+    # creating export directory
+    os.makedirs(export_dir, exist_ok=True)
+    export_path = export_dir + os.sep + "image_encoder.onnx"
+
+    # initializing export model
+    sam = sam_model_registry[checkpoint_name](checkpoint=checkpoint_path)
+    to_onnx = ImageEncoderExp(sam)
+
+    # doing export
+    dummy_inputs = {
+        "input_image": torch.normal(mean=0.0, std=1.0, size=(1, 3, to_onnx.image_size, to_onnx.image_size))
+    }
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=torch.jit.TracerWarning)
+        warnings.filterwarnings("ignore", category=UserWarning)
+        with open(export_path, "wb") as export_f:
+            torch.onnx.export(
+                to_onnx,
+                tuple(dummy_inputs.values()),
+                export_f,
+                export_params=True,
+                verbose=False,
+                opset_version=17,
+                do_constant_folding=True,
+                input_names=list(dummy_inputs.keys()),
+            )
+
+
+def export_the_rest(export_dir: str, checkpoint_name: str):
+    # by the moment of calling this function the export path as well as the saved weights' checkpoint
+    # should already exist
+    export_path = export_dir + os.sep + "the_rest.onnx"
+    sam = sam_model_registry[checkpoint_name](get_checkpoint_path(checkpoint_name))
     to_onnx = ExportTheRest(sam)
 
     dynamic_axes = {
@@ -99,11 +181,11 @@ if __name__ == "__main__":
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=torch.jit.TracerWarning)
         warnings.filterwarnings("ignore", category=UserWarning)
-        with open(export_path, "wb") as f:
+        with open(export_path, "wb") as export_f:
             torch.onnx.export(
                 to_onnx,
                 tuple(dummy_inputs.values()),
-                f,
+                export_f,
                 export_params=True,
                 verbose=False,
                 opset_version=17,
@@ -112,3 +194,32 @@ if __name__ == "__main__":
                 output_names=output_names,
                 dynamic_axes=dynamic_axes
             )
+
+
+def print_help():
+    print("python export_model.py [OPTIONS] export_directory")
+    print("Export segment-anything to ONNX format and save output in <export_directory>")
+    print("Two files with names \"image_encoder.onnx\" and \"the_rest.onnx\" will be created.")
+    print("Optional arguments:")
+    print("\t-h, --help: print this help message and exit without processing")
+    print("\t-c, --checkpoint: VIT weights checkpoint to download.")
+    print("\t                  Possible values are vit_b (default), vit_l, vit_h.")
+
+
+if __name__ == "__main__":
+    opts, args = getopt.getopt(sys.argv[1:], "hc:", ["help", "checkpoint="])
+    checkpoint_name = "vit_b"
+    for opt, arg in opts:
+        if opt in ("-h", "--help"):
+            print_help()
+            sys.exit()
+        elif opt in ("-c", "--checkpoint"):
+            checkpoint_name = arg
+
+    export_directory = None if len(args) == 0 else args[0]
+    if export_directory is None:
+        print_help()
+        raise RuntimeError("Export directory is not specified")
+
+    export_im_encoder(export_directory, checkpoint_name)
+    export_the_rest(export_directory, checkpoint_name)

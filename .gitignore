@@ -1,5 +1,6 @@
 export/
 data/
 venv/
+cache/
 .idea/
 build*/
