@@ -13,6 +13,17 @@
 using namespace std::filesystem;
 using namespace std::chrono;
 
+namespace {
+
+cv::Mat applyMask(const cv::Mat& image, const cv::Mat& mask) {
+    cv::Mat result = cv::Mat::zeros(image.size(), image.type());
+    image.copyTo(result, mask);
+
+    return result;
+}
+
+}
+
 int main() {
     try {
         const std::filesystem::path im_enc_path = "C:\\Work\\Develop\\SAM2ONNX\\export\\image_encoder.onnx";
@@ -22,7 +33,7 @@ int main() {
             return EXIT_FAILURE;
 
         auto test_im = cv::imread("C:\\Work\\Develop\\SAM2ONNX\\data\\test_image.jpg", cv::IMREAD_COLOR);
-        cv::cvtColor(test_im, test_im, cv::COLOR_BGR2RGB);
+        cv::cvtColor(test_im, test_im, cv::COLOR_BGR2RGB); // SAM awaits an image in RGB format
 
         // Setting up and running the model
         cppsam::SAMModel model(std::make_shared<vino_executor::ONNXVinoExecutor>(ov::Core(), im_enc_path, the_rest_path));
@@ -35,8 +46,14 @@ int main() {
 
         std::cout << "Inference in " << duration_cast<milliseconds>(t1 - t0).count() << " ms" << std::endl;
 
-        cv::resize(result, result, cv::Size(), 0.2, 0.2);
-        cv::imshow("Result mask", result);
+        //preparing for showing the results
+        cv::resize(result, result, cv::Size(), 0.4, 0.4); // resize for convenient representation
+        cv::resize(test_im, test_im, cv::Size(), 0.4, 0.4); // resize for convenient representation
+        cv::cvtColor(test_im, test_im, cv::COLOR_RGB2BGR); // converting back into BGR format for presenting
+        cv::Mat masked = applyMask(test_im, result);
+
+        cv::imshow("Result image", masked);
+        cv::imshow("Original image", test_im);
         cv::waitKey(0);
     }
     catch (std::exception& ex) {
