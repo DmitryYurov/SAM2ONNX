@@ -13,7 +13,7 @@ import torch
 from segment_anything import sam_model_registry
 from segment_anything.modeling import Sam
 
-cache_dir = "." + os.sep + "cache"
+from utils import cache_dir, get_checkpoint_url, get_checkpoint_path
 
 
 class ImageEncoderExp(torch.nn.Module):
@@ -92,28 +92,6 @@ class ExportTheRest(torch.nn.Module):
         # the next line selects the best mask, equiv. return_single_mask=True for SamOnnxModel
         masks, scores = self.select_masks(masks, scores, point_coords.shape[1])
         return masks, scores
-
-
-def get_checkpoint_url(checkpoint_name: str):
-    if checkpoint_name == "vit_b":
-        return "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth"
-    elif checkpoint_name == "vit_h":
-        return "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth"
-    elif checkpoint_name == "vit_l":
-        return "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_l_0b3195.pth"
-    else:
-        raise RuntimeError(f"Given checkpoint {checkpoint_name} is unknown")
-
-
-def get_checkpoint_path(checkpoint_name: str):
-    if checkpoint_name == "vit_b":
-        return cache_dir + os.sep + "sam_vit_b_01ec64.pth"
-    elif checkpoint_name == "vit_h":
-        return cache_dir + os.sep + "sam_vit_h_4b8939.pth"
-    elif checkpoint_name == "vit_l":
-        return cache_dir + os.sep + "sam_vit_l_0b3195.pth"
-    else:
-        raise RuntimeError(f"Given checkpoint {checkpoint_name} is unknown")
 
 
 def export_im_encoder(export_dir: str, checkpoint_name: str):
@@ -205,6 +183,8 @@ def print_help():
     print("\t-c, --checkpoint: VIT weights checkpoint to download.")
     print("\t                  Possible values are vit_b (default), vit_l, vit_h.")
 
+    sys.exit()
+
 
 if __name__ == "__main__":
     opts, args = getopt.getopt(sys.argv[1:], "hc:", ["help", "checkpoint="])
@@ -212,14 +192,12 @@ if __name__ == "__main__":
     for opt, arg in opts:
         if opt in ("-h", "--help"):
             print_help()
-            sys.exit()
         elif opt in ("-c", "--checkpoint"):
             checkpoint_name = arg
 
     export_directory = None if len(args) == 0 else args[0]
     if export_directory is None:
-        print_help()
-        raise RuntimeError("Export directory is not specified")
+        raise RuntimeError("Export directory is not specified. Run the application with -h argument for full info")
 
     export_im_encoder(export_directory, checkpoint_name)
     export_the_rest(export_directory, checkpoint_name)
