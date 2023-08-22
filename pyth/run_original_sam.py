@@ -58,10 +58,8 @@ def print_help():
 
 
 if __name__ == "__main__":
-    opts, args = getopt.getopt(sys.argv[1:], "hci:", ["help", "checkpoint=", "image_path="])
+    opts, args = getopt.getopt(sys.argv[1:], "hc:", ["help", "checkpoint="])
 
-    image_path = str()
-    checkpoint_name = "vit_b"
     for opt, arg in opts:
         if opt in ("-h", "--help"):
             print_help()

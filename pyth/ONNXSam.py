@@ -1,5 +1,9 @@
+import os
+import sys
 from typing import Tuple
 import time
+import getopt
+from copy import deepcopy
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -7,19 +11,8 @@ import cv2
 import torch
 from torch.nn import functional as Func
 from torchvision.transforms.functional import resize, to_pil_image  # type: ignore
-from copy import deepcopy
 
 import onnxruntime
-
-
-def show_mask(mask, ax, random_color=False):
-    if random_color:
-        color = np.concatenate([np.random.random(3), np.array([0.6])], axis=0)
-    else:
-        color = np.array([30 / 255, 144 / 255, 255 / 255, 0.6])
-    h, w = mask.shape[-2:]
-    mask_image = mask.reshape(h, w, 1) * color.reshape(1, 1, -1)
-    ax.imshow(mask_image)
 
 
 def show_points(coords, labels, ax, marker_size=375):
@@ -127,6 +120,10 @@ class ONNXSam:
     mask_threshold: float = 0.0
 
     def __init__(self, imenc_path: str, therest_path: str):
+        if not (os.path.exists(imenc_path) and os.path.isfile(imenc_path)):
+            raise RuntimeError(f"Image encoder coudn't be found at the path {imenc_path}")
+        if not (os.path.exists(therest_path) and os.path.isfile(therest_path)):
+            raise RuntimeError(f"SAM back-part coudn't be found at the path {therest_path}")
         self.session_imenc = onnxruntime.InferenceSession(imenc_path)
         self.session_therest = onnxruntime.InferenceSession(therest_path)
 
@@ -180,9 +177,9 @@ class ONNXSam:
         processed_image, original_size = self.preprocess_image(image)
         features = self.session_imenc.run(None, {"input_image": processed_image})
 
-        onnx_coord = np.concatenate([points, np.array([[0.0, 0.0]])], axis=0)[None, :, :]
+        onnx_coord = points[None, :, :]
         onnx_coord = ResizeLongestSide(self.input_size).apply_coords(onnx_coord, image.shape[:2]).astype(np.float32)
-        onnx_label = np.concatenate([point_labels, np.array([-1])], axis=0)[None, :].astype(np.float32)
+        onnx_label = point_labels[None, :].astype(np.float32)
 
         onnx_mask_input = np.zeros((1, 1, 256, 256), dtype=np.float32)
         onnx_has_mask_input = np.zeros(1, dtype=np.float32)
@@ -201,24 +198,76 @@ class ONNXSam:
         return masks > self.mask_threshold, scores
 
 
+def print_help():
+    print("python ONNXSam.py [OPTIONS] export_path image_path points labels")
+    print("Run ONNX-version of the segment-anything")
+    print("Mandatory arguments:")
+    print("\t export_path: The path to onnx-exported SAM, e.g. \".\\export\"")
+    print("\t image_path: The path to image to process, e.g. \"..\\data\\test_image.jpg\"")
+    print("\t points: an array of 2d coordinates for segmentation, e.g. \"926, 926, 806, 918, 0, 0\"")
+    print("\t         Each pair of adjacent comma-separated values is treated as a 2d-point")
+    print("\t labels: Labels corresponding to the provided 2d coordinates, e.g. \"1, 0, -1\"")
+    print("\t         The number of labels must coincide with the number of input points")
+    print("\t Note that points and labels require additional padding input ((0, 0) and -1 respectively) "
+          "as described in the original script for onnx-export at "
+          "https://github.com/facebookresearch/segment-anything/blob/main/notebooks/onnx_model_example.ipynb "
+          "in case there is no box input for the model")
+    print("Optional arguments:")
+    print("\t-h, --help: print this help message and exit without processing")
+
+    sys.exit()
+
+
 if __name__ == "__main__":
-    predictor = ONNXSam("../export/image_encoder.onnx", "../export/the_rest.onnx")
-    image_path = "../data/1.bmp"
+    opts, args = getopt.getopt(sys.argv[1:], "h", ["help"])
+
+    for opt, arg in opts:
+        if opt in ("-h", "--help"):
+            print_help()
+
+    export_path = None if len(args) < 1 else args[0]
+    if export_path is None or not os.path.exists(export_path) or not os.path.isdir(export_path):
+        raise RuntimeError("Export path is not defined, doesn't exist or is not a directory,\n"
+                           "run ONNXSam.py -h for full info.")
+
+    predictor = ONNXSam(export_path + os.path.sep + "image_encoder.onnx", export_path + os.path.sep + "the_rest.onnx")
+
+    image_path = None if len(args) < 2 else args[1]
+    if image_path is None:
+        raise RuntimeError("Image path was not provided, you need to provide at least image path, points and labels,\n"
+                           "run ONNXSam.py -h for full info.")
+    if not (os.path.exists(image_path) and os.path.isfile(image_path)):
+        raise RuntimeError(f"{image_path} does not exist")
+
     image = cv2.imread(image_path)
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-    input_point = np.array([[547, 340]])
-    input_label = np.array([1])
+    input_points = None if len(args) < 2 else np.fromstring(args[2], sep=',').reshape((-1, 2))
+    if input_points is None:
+        raise RuntimeError("Input points for segmentation are not defined,\n"
+                           "run ONNXSam.py -h for full info.")
+    input_labels = None if len(args) < 3 else np.fromstring(args[3], sep=',')
+    if input_labels is None:
+        raise RuntimeError("Input labels for segmentation are not defined,\n"
+                           "run ONNXSam.py -h for full info.")
+    if len(input_labels) != input_points.shape[0]:
+        raise RuntimeError("Number of labels and points must be equal.")
 
     t = time.perf_counter()
-    masks, scores = predictor.predict(image, input_point, input_label)
+    masks, scores = predictor.predict(image, input_points, input_labels)
     print(f"Prediction time: {time.perf_counter() - t} seconds")
 
     for i, (mask, score) in enumerate(zip(masks, scores)):
-        plt.figure(figsize=(10, 10))
-        plt.imshow(image)
-        show_mask(mask, plt.gca())
-        show_points(input_point, input_label, plt.gca())
-        plt.title(f"Mask {i + 1}, Score: {score[0]:.3f}", fontsize=18)
-        plt.axis('off')
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
+
+        # drawing the image with masking out the background
+        ax1.imshow(mask[0, :, :, np.newaxis] * image)
+
+        # drawing original image with input points
+        ax2.imshow(image)
+        show_points(input_points, input_labels, ax2)
+
+        fig.suptitle(f"Mask {i + 1}, Score: {score[0]:.3f}", fontsize=18)
+        ax1.axis('off')
+        ax2.axis('off')
         plt.show()

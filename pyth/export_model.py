@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
-import getopt
 import os
 import sys
 import warnings
 from typing import Tuple
+import getopt
 
 import requests
 
