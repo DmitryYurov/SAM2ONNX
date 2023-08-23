@@ -3,13 +3,18 @@ set(target_name test_app)
 find_package(OpenCV 4.2 REQUIRED opencv_core opencv_imgproc opencv_imgcodecs)
 find_package(OpenVINO REQUIRED Runtime ONNX)
 
+file(DOWNLOAD
+    https://github.com/CLIUtils/CLI11/releases/download/v2.3.2/CLI11.hpp
+    ${CMAKE_BINARY_DIR}/cli11/CLI11.hpp
+    SHOW_PROGRESS)
+
 add_executable(
   ${target_name}
   main.cpp
 )
 
 set_target_properties(${target_name} PROPERTIES CXX_STANDARD 20)
-target_include_directories(${target_name} PRIVATE "../code")
+target_include_directories(${target_name} PRIVATE "../code" "${CMAKE_BINARY_DIR}")
 target_link_libraries(
   ${target_name}
   PRIVATE opencv_core opencv_imgproc opencv_imgcodecs openvino::runtime cppsam vino_executor

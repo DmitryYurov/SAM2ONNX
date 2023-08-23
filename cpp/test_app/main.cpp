@@ -10,6 +10,8 @@
 #include <cppsam/SAMModel.h>
 #include <vino_executor/ONNXVinoExecutor.h>
 
+#include <cli11/CLI11.hpp>
+
 using namespace std::filesystem;
 using namespace std::chrono;
 

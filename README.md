@@ -11,7 +11,17 @@ As opposed to the example of export to ONNX-format [provided](https://github.com
 
 For exporting the model and running it in python just use the `requirements.txt` file in `pyth` directory. The validity of the scripts has been checked with `Python 3.10.4`.
 
-## How to export and run in python with `onnxruntime`
+For running `C++` example the requirements are as follows:
+
+* 17th-standard-capable C++ compiler
+* CMake ver. >= 3.21 (probably works with much older versions)
+* [CLI11](https://github.com/CLIUtils/CLI11) (installed automatically during CMake project generation) for parsing command line arguments
+* OpenCV ver. 4.x for running pre- and post-processing tasks
+* OpenVINO ver. >= 2023.0 for inference on ONNX-exported model
+
+OpenVINO is a library for Intel hardware, thus you also need their CPU, GPU or an AI-accelerator to be accessible on your system.
+
+## How to export model and run it in python with `onnxruntime`
 
 First go to the `pyth` folder of the repository and install all the requirements from the `requirements.txt` file.
 ```
