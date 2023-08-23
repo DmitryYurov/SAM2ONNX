@@ -21,7 +21,9 @@ For running `C++` example the requirements are as follows:
 
 OpenVINO is a library for Intel hardware, thus you also need their CPU, GPU or an AI-accelerator to be accessible on your system.
 
-## How to export model and run it in python with `onnxruntime`
+`C++` application and libraries have been tested with `msvc` 19.36.32537.0 on `x64` architecture.
+
+## How to export model and run it in python with onnxruntime
 
 First go to the `pyth` folder of the repository and install all the requirements from the `requirements.txt` file.
 ```
@@ -57,6 +59,40 @@ python ONNXSam.py ./export ../data/test_image.jpg "926, 926, 806, 918, 0, 0" "1,
 > Note the trailing zeros for points (the first array of numerical arguments) and "-1" for labels(the second array of numerical arguments). They are required for padding in case you don't provide box inputs (that is the inputs with label values `2` and `3`).
 
 In case everything went well, you will get exactly the same output as from the original SAM model.
+
+## Segment-Anything with OpenCV and OpenVINO in C++
+
+### Building
+
+I will assume further, that you use `PowerShell` and `msvc` to build your project.
+The steps to perform under e.g. `Linux` and `GCC` are practically the same provided you replace the cmake generator.
+
+Assuming you are in the project root folder, you can use the following commands in your terminal:  
+
+```
+mkdir ./build_msvc_2022
+cd ./build_msvc_2022
+cmake -DOpenCV_DIR=<OpenCV installation root>/build -DOpenVINO_DIR=<OpenVINO installation root>/runtime/cmake -DCMAKE_BUILD_TYPE=Release -G "Visual Studio 17 2022" ../cpp
+```
+
+If generation has been successful, you can just run
+```
+cmake --build . --config Release
+```
+
+### Running
+
+In order to reproduce the jellyfish segmentation previously performed in [python](#how-to-export-model-and-run-it-in-python-with-onnxruntime), locate the test application executable `test_app.exe` in `<build_root>/test_app/<build_type>`and run it with the following arguments:
+
+```
+./test_app.exe -x ..\..\..\pyth\export -i ..\..\..\data\test_image.jpg -p 926, 926, 806, 918, 0, 0 -l 1, 0, -1
+```
+
+Here I assume that your exported model has been saved into `<project_root>/pyth/export` folder.
+You can inspect the application input options by running
+```
+./test_app.exe -h
+``` 
 
 ## License
 
