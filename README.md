@@ -1,5 +1,5 @@
 # SAM2ONNX
-A set of scripts to export Segment-Anything into ONNX format together with the image encoder
+This repo is a set of utilities for exporting Segment-Anything into ONNX format together with the image encoder. On top of that one can find here an example of using the model in a C++ application with OpenCV and OpenVINO
 
 ## Overview
 
