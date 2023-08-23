@@ -60,6 +60,7 @@ def print_help():
 if __name__ == "__main__":
     opts, args = getopt.getopt(sys.argv[1:], "hc:", ["help", "checkpoint="])
 
+    checkpoint_name = "vit_b"
     for opt, arg in opts:
         if opt in ("-h", "--help"):
             print_help()
