@@ -15,7 +15,8 @@ class ONNXVinoExecutor : public cppsam::ONNXExecutorInterface {
 public:
     ONNXVinoExecutor(ov::Core core,
                      std::filesystem::path im_encoder_path,
-                     std::filesystem::path the_rest_path);
+                     std::filesystem::path the_rest_path,
+                     std::string hardware = "CPU");
     ~ONNXVinoExecutor() override;
 
     cv::Size input_size() const override;
@@ -26,6 +27,7 @@ public:
 
 private:
     ov::Core m_core;
+    std::string m_hardware; // hardware label
 
     // models
     std::shared_ptr<ov::Model> m_im_encoder;

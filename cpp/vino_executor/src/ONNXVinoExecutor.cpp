@@ -40,8 +40,10 @@ namespace vino_executor {
 
 ONNXVinoExecutor::ONNXVinoExecutor(ov::Core core,
                                    std::filesystem::path im_encoder_path,
-                                   std::filesystem::path the_rest_path)
+                                   std::filesystem::path the_rest_path,
+                                   std::string hardware)
     : m_core(core)
+    , m_hardware(hardware)
 {
     std::cout << "Loading image encoder from: " << im_encoder_path.string() << "\t...";
     std::shared_ptr<ov::Model> im_enc = core.read_model(im_encoder_path);
@@ -56,7 +58,7 @@ ONNXVinoExecutor::ONNXVinoExecutor(ov::Core core,
     std::cout << "\tsuccessful" << std::endl;
 
     std::cout << "Compiling the image encoder to a device" << "\t...";
-    m_im_enc_compiled = m_core.compile_model(m_im_encoder, "CPU");
+    m_im_enc_compiled = m_core.compile_model(m_im_encoder, m_hardware);
     std::cout << "\tsuccessful" << std::endl;
 
     std::cout << "Loading the model tail from: " << the_rest_path.string() << "\t...";
@@ -64,7 +66,7 @@ ONNXVinoExecutor::ONNXVinoExecutor(ov::Core core,
     std::cout << "\tsuccessful" << std::endl;
 
     std::cout << "Compiling the tail to a device" << "\t...";
-    m_the_rest_compiled = m_core.compile_model(m_the_rest, "CPU");
+    m_the_rest_compiled = m_core.compile_model(m_the_rest, m_hardware);
     std::cout << "\tsuccessful" << std::endl;
 
     std::cout << "Creating infer requests" << "\t...";
